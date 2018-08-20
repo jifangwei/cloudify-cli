@@ -15,7 +15,6 @@
 ############
 
 import json
-import time
 
 from cloudify_rest_client import exceptions
 
@@ -189,60 +188,66 @@ def manager_start(workflow_id,
     `WORKFLOW_ID` is the id of the workflow to execute (e.g. `uninstall`)
     """
     utils.explicit_tenant_name_message(tenant_name, logger)
-    events_logger = get_events_logger(json_output)
-    events_message = "* Run 'cfy events list -e {0}' to retrieve the " \
-                     "execution's events/logs"
-    original_timeout = timeout
     logger.info('Executing workflow `{0}` on deployment `{1}`'
                 ' [timeout={2} seconds]'.format(workflow_id,
                                                 deployment_id,
                                                 timeout))
     try:
-        try:
-            execution = client.executions.start(
-                deployment_id,
-                workflow_id,
-                parameters=parameters,
-                allow_custom_parameters=allow_custom_parameters,
-                force=force,
-                dry_run=dry_run,
-                queue=queue)
-        except (exceptions.DeploymentEnvironmentCreationInProgressError,
-                exceptions.DeploymentEnvironmentCreationPendingError) as e:
-            # wait for deployment environment creation workflow
-            if isinstance(
-                    e,
-                    exceptions.DeploymentEnvironmentCreationPendingError):
-                status = 'pending'
-            else:
-                status = 'in progress'
+        execution = client.executions.start(
+            deployment_id,
+            workflow_id,
+            parameters=parameters,
+            allow_custom_parameters=allow_custom_parameters,
+            force=force,
+            dry_run=dry_run,
+            queue=queue)
+    except (exceptions.DeploymentEnvironmentCreationInProgressError,
+            exceptions.DeploymentEnvironmentCreationPendingError) as e:
+        # wait for deployment environment creation workflow
+        if isinstance(
+                e,
+                exceptions.DeploymentEnvironmentCreationPendingError):
+            status = 'pending'
+        else:
+            status = 'in progress'
 
-            logger.info('Deployment environment creation is {0}...'.format(
-                status))
-            logger.debug('Waiting for create_deployment_environment '
-                         'workflow execution to finish...')
-            now = time.time()
-            wait_for_execution(client,
-                               get_deployment_environment_execution(
-                                   client, deployment_id, CREATE_DEPLOYMENT),
-                               events_handler=events_logger,
-                               include_logs=include_logs,
-                               timeout=timeout)
-            remaining_timeout = time.time() - now
-            timeout -= remaining_timeout
-            # try to execute user specified workflow
-            execution = client.executions.start(
-                deployment_id,
-                workflow_id,
-                parameters=parameters,
-                allow_custom_parameters=allow_custom_parameters,
-                force=force,
-                queue=queue)
+        logger.info('Deployment environment creation is {0}...'.format(
+            status))
+        logger.debug('Waiting for create_deployment_environment '
+                     'workflow execution to finish...')
+        dep_env_exec = get_deployment_environment_execution(
+            client, deployment_id, CREATE_DEPLOYMENT)
+        follow_execution(client, dep_env_exec, timeout,
+                         json_output=json_output, include_logs=include_logs)
 
-        if execution.status == 'queued':  # We don't need to wait for execution
-            logger.info('Execution is being queued. It will automatically'
-                        ' start when possible.')
-            return
+        # try to execute user specified workflow
+        execution = client.executions.start(
+            deployment_id,
+            workflow_id,
+            parameters=parameters,
+            allow_custom_parameters=allow_custom_parameters,
+            force=force,
+            queue=queue)
+
+    if execution.status == 'queued':  # We don't need to wait for execution
+        logger.info('Execution is being queued. It will automatically'
+                    ' start when possible.')
+        return
+
+    follow_execution(client, execution, timeout, logger,
+                     json_output=json_output, include_logs=include_logs)
+
+
+def follow_execution(client, execution, timeout, logger, parameters=None,
+                     json_output=False, include_logs=True):
+    if parameters is None:
+        parameters = {}
+    events_logger = get_events_logger(json_output)
+    events_message = "* Run 'cfy events list -e {0}' to retrieve the " \
+                     "execution's events/logs"
+    deployment_id = execution.deployment_id
+    workflow_id = execution.workflow_id
+    try:
         execution = wait_for_execution(client,
                                        execution,
                                        events_handler=events_logger,
@@ -282,7 +287,7 @@ def manager_start(workflow_id,
             "status.\n"
             "* Run 'cfy executions cancel {2}' to cancel"
             " the running workflow.".format(
-                workflow_id, deployment_id, e.execution_id, original_timeout))
+                workflow_id, deployment_id, e.execution_id, timeout))
 
         events_tail_message = "* Run 'cfy events list --tail " \
                               "--execution-id {0}' to retrieve the " \
@@ -319,6 +324,25 @@ def manager_cancel(execution_id, force, kill, logger, client, tenant_name):
         "A cancel request for execution {0} has been sent. "
         "To track the execution's status, use:\n"
         "cfy executions get {0}".format(execution_id))
+
+
+@cfy.command(name='resume',
+             short_help='Cancel a workflow execution [manager only]')
+@cfy.argument('execution-id')
+@cfy.options.common_options
+@cfy.options.tenant_name(required=False, resource_name_for_help='execution')
+@cfy.assert_manager_active()
+@cfy.options.timeout()
+@cfy.options.include_logs
+@cfy.options.json_output
+@cfy.pass_client()
+@cfy.pass_logger
+def manager_resume(execution_id, logger, client, tenant_name, timeout,
+                   json_output, include_logs):
+    utils.explicit_tenant_name_message(tenant_name, logger)
+    execution = client.executions.resume(execution_id)
+    follow_execution(client, execution, timeout, logger,
+                     json_output=json_output, include_logs=include_logs)
 
 
 @cfy.command(name='start',
