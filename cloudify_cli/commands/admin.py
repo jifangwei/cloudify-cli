@@ -30,7 +30,6 @@ def config_get(client, logger):
 @cfy.pass_client()
 @cfy.argument('option-name')
 @cfy.argument('option-value')
-@cfy.options.inputs
 @cfy.pass_logger
 def config_update(client, logger, option_name, option_value):
     client.manager.put_config(option_name, json.loads(option_value))
