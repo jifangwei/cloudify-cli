@@ -25,7 +25,7 @@ def config_get(client, logger):
     print_data(CONFIG_COLUMNS, config, 'Manager config:')
 
 
-@config.command(name='get')
+@config.command(name='set')
 @cfy.pass_client()
 @cfy.argument('option-name')
 @cfy.options.inputs
