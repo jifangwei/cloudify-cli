@@ -1,3 +1,4 @@
+import json
 
 from ..cli import cfy
 from ..table import print_data
@@ -28,7 +29,8 @@ def config_get(client, logger):
 @config.command(name='set')
 @cfy.pass_client()
 @cfy.argument('option-name')
+@cfy.argument('option-value')
 @cfy.options.inputs
 @cfy.pass_logger
-def config_update(client, logger, option_name, inputs):
-    client.manager.put_config(option_name, inputs)
+def config_update(client, logger, option_name, option_value):
+    client.manager.put_config(option_name, json.loads(option_value))
