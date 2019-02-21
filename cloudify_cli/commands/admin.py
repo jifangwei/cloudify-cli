@@ -16,6 +16,7 @@ def config():
 
 @config.command(name='get')
 @cfy.pass_client()
+@cfy.pass_logger
 def config_get(client, logger):
     config = client.manager.get_config()
     print config
