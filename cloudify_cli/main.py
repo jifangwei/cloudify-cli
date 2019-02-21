@@ -22,6 +22,7 @@ from .commands import ssl_cmd
 from .commands import init
 from .commands import logs
 from .commands import ldap
+from .commands import admin
 from .commands import users
 from .commands import nodes
 from .commands import agents
@@ -79,6 +80,7 @@ def _register_commands():
     _cfy.add_command(profiles.profiles)
 
     # Manager only commands
+    _cfy.add_command(admin.admin)
     _cfy.add_command(dev.dev)
     _cfy.add_command(ssh.ssh)
     _cfy.add_command(ssl_cmd.ssl)
