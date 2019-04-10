@@ -92,6 +92,9 @@ PREVIEW = (
     "Preview the deployment update, stating what changes will be made "
     "without actually applying any changes."
 )
+DONT_UPDATE_PLUGINS = (
+    "Don't update the plugins."
+)
 
 FORCE_UPDATE = (
     "Force running update in case a previous update on this deployment has "
