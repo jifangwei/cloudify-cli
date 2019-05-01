@@ -29,6 +29,7 @@ Vagrant.configure('2') do |config|
   config.vm.define "debian_wheezy_x64" do |debian_wheezy_x64|
     #dummy box, will be overriden
     debian_wheezy_x64.vm.box = "dummy"
+    debian_wheezy_x64.vm.box_check_update = false
     debian_wheezy_x64.vm.box_url = "https://github.com/mitchellh/vagrant-aws/raw/master/dummy.box"
     debian_wheezy_x64.vm.provider :aws do |aws, override|
       aws.access_key_id = AWS_ACCESS_KEY_ID
