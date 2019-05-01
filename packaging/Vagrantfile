@@ -25,6 +25,7 @@ BRANCH = ENV['BRANCH']
 REPO = ENV['REPO']
 
 Vagrant.configure('2') do |config|
+  config.vm.box_check_update = false 
   config.vm.define "debian_wheezy_x64" do |debian_wheezy_x64|
     #dummy box, will be overriden
     debian_wheezy_x64.vm.box = "dummy"
