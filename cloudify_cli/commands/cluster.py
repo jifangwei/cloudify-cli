@@ -20,7 +20,7 @@ from requests.exceptions import ConnectionError
 
 from .. import env
 from ..cli import cfy
-from ..table import print_data
+from ..table import print_data, print_single
 from ..exceptions import CloudifyCliError
 
 
@@ -68,28 +68,82 @@ def status(client):
     """
     Display the current status of the Cloudify Manager cluster
     """
+    cluster_managers_list(client)
+    cluster_brokers_list(client)
+
+
+@cluster.group(name='brokers')
+@cfy.options.common_options
+def cluster_brokers():
+    pass
+
+
+@cluster_brokers.command(name='list')
+@cfy.pass_client()
+@cfy.options.common_options
+def cluster_brokers_list(client):
+    brokers = client.manager.get_brokers().items
+    print_data(BROKER_COLUMNS, brokers, 'RabbitMQ brokers')
+
+
+@cluster_brokers.command(name='get')
+@cfy.pass_client()
+@cfy.argument('hostname')
+@cfy.pass_logger
+@cfy.options.common_options
+def cluster_brokers_get(hostname, client, logger):
+    brokers = client.manager.get_brokers().items
+    for broker in brokers:
+        if broker.hostname == hostname:
+            columns = BROKER_COLUMNS + ['port', 'params', 'ca_cert_content']
+            print_single(columns, broker, 'RabbitMQ {0}'.format(hostname))
+            break
+    else:
+        raise ValueError('Broker {0} not found'.format(hostname))
+
+
+@cluster.group(name='managers')
+@cfy.options.common_options
+def cluster_managers():
+    pass
+
+
+@cluster_managers.command(name='get')
+@cfy.pass_client()
+@cfy.argument('hostname')
+@cfy.pass_logger
+@cfy.options.common_options
+def cluster_managers_get(hostname, client, logger):
+    managers = client.manager.get_managers().items
+    for manager in managers:
+        if manager.hostname == hostname:
+            columns = CLUSTER_COLUMNS + ['ca_cert_content']
+            print_single(columns, manager, 'RabbitMQ {0}'.format(hostname))
+            break
+    else:
+        raise ValueError('Broker {0} not found'.format(hostname))
+
+
+@cluster_managers.command(name='list')
+@cfy.pass_client()
+@cfy.options.common_options
+def cluster_managers_list(client):
     managers = client.manager.get_managers().items
     updated_columns = CLUSTER_COLUMNS
     for manager in managers:
         client.host = manager.public_ip
         try:
-            services = client.manager.get_status()['services']
+            client.manager.get_status()
             manager.update({'status': 'Active'})
         except ConnectionError:
             manager.update({'status': 'Offline'})
             continue
-        for service in services:
-            state = service['instances'][0]['state'] \
-                if 'instances' in service and \
-                   len(service['instances']) > 0 else 'unknown'
-            manager.update({service['display_name'].ljust(20): state})
     print_data(updated_columns, managers, 'HA Cluster nodes')
-    brokers = client.manager.get_brokers().items
-    print_data(BROKER_COLUMNS, brokers, 'RabbitMQ brokers')
 
 
-@cluster.command(name='remove',
-                 short_help='Remove a node from the cluster [cluster only]')
+@cluster_managers.command(
+    name='remove',
+    short_help='Remove a node from the cluster [cluster only]')
 @pass_cluster_client()
 @cfy.pass_logger
 @cfy.argument('hostname')
