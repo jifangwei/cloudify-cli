@@ -25,8 +25,9 @@ from ..exceptions import CloudifyCliError
 
 
 # The list will be updated with the services on each manager
-CLUSTER_COLUMNS = ['hostname', 'private_ip', 'public_ip', 'version', 'edition',
-                   'distribution', 'distro_release', 'status']
+CLUSTER_COLUMNS = ['hostname', 'public_ip', 'version', 'edition',
+                   'distribution', 'distro_release', 'status', 'networks']
+BROKER_COLUMNS = ['name', 'host', 'networks']
 
 
 def pass_cluster_client(*client_args, **client_kwargs):
@@ -61,7 +62,7 @@ def cluster():
 
 @cluster.command(name='status',
                  short_help='Show the current cluster status [cluster only]')
-@pass_cluster_client()
+@cfy.pass_client()
 @cfy.options.common_options
 def status(client):
     """
@@ -73,10 +74,6 @@ def status(client):
         client.host = manager.public_ip
         try:
             services = client.manager.get_status()['services']
-            updated_columns += [
-                service['display_name'].ljust(20) for service in services
-                if service['display_name'].ljust(20) not in updated_columns
-            ]
             manager.update({'status': 'Active'})
         except ConnectionError:
             manager.update({'status': 'Offline'})
@@ -87,6 +84,8 @@ def status(client):
                    len(service['instances']) > 0 else 'unknown'
             manager.update({service['display_name'].ljust(20): state})
     print_data(updated_columns, managers, 'HA Cluster nodes')
+    brokers = client.manager.get_brokers().items
+    print_data(BROKER_COLUMNS, brokers, 'RabbitMQ brokers')
 
 
 @cluster.command(name='remove',
