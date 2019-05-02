@@ -21,8 +21,8 @@ def list_config(client):
 @config.command(name='update')
 @cfy.pass_client()
 @cfy.pass_logger
-@cfy.argument('name')
-@cfy.argument('value')
-def update_config(client, name, value, logger):
-    client.manager.put_config(name, value)
-    logger.info('Set %s to %s', name, value)
+@cfy.options.inputs
+def update_config(client, inputs, logger):
+    for name, value in inputs.items():
+        client.manager.put_config(name, value)
+        logger.info('Set %s to %s', name, value)
