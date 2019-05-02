@@ -92,18 +92,18 @@ def _list_brokers(client):
 
 @cluster_brokers.command(name='get')
 @cfy.pass_client()
-@cfy.argument('hostname')
+@cfy.argument('name')
 @cfy.pass_logger
 @cfy.options.common_options
-def cluster_brokers_get(hostname, client, logger):
+def cluster_brokers_get(name, client, logger):
     brokers = client.manager.get_brokers().items
     for broker in brokers:
-        if broker.hostname == hostname:
+        if broker.name == name:
             columns = BROKER_COLUMNS + ['port', 'params', 'ca_cert_content']
-            print_single(columns, broker, 'RabbitMQ {0}'.format(hostname))
+            print_single(columns, broker, 'RabbitMQ {0}'.format(name))
             break
     else:
-        raise ValueError('Broker {0} not found'.format(hostname))
+        raise ValueError('Broker {0} not found'.format(name))
 
 
 @cluster.group(name='managers')
@@ -114,18 +114,18 @@ def cluster_managers():
 
 @cluster_managers.command(name='get')
 @cfy.pass_client()
-@cfy.argument('name')
+@cfy.argument('hostname')
 @cfy.pass_logger
 @cfy.options.common_options
-def cluster_managers_get(name, client, logger):
+def cluster_managers_get(hostname, client, logger):
     managers = client.manager.get_managers().items
     for manager in managers:
-        if manager.name == name:
+        if manager.hostname == hostname:
             columns = CLUSTER_COLUMNS + ['ca_cert_content']
-            print_single(columns, manager, 'RabbitMQ {0}'.format(name))
+            print_single(columns, manager, 'Manager {0}'.format(hostname))
             break
     else:
-        raise ValueError('Broker {0} not found'.format(name))
+        raise ValueError('Manager {0} not found'.format(hostname))
 
 
 @cluster_managers.command(name='list')
