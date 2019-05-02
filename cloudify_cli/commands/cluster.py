@@ -114,18 +114,18 @@ def cluster_managers():
 
 @cluster_managers.command(name='get')
 @cfy.pass_client()
-@cfy.argument('hostname')
+@cfy.argument('name')
 @cfy.pass_logger
 @cfy.options.common_options
-def cluster_managers_get(hostname, client, logger):
+def cluster_managers_get(name, client, logger):
     managers = client.manager.get_managers().items
     for manager in managers:
-        if manager.hostname == hostname:
+        if manager.name == name:
             columns = CLUSTER_COLUMNS + ['ca_cert_content']
-            print_single(columns, manager, 'RabbitMQ {0}'.format(hostname))
+            print_single(columns, manager, 'RabbitMQ {0}'.format(name))
             break
     else:
-        raise ValueError('Broker {0} not found'.format(hostname))
+        raise ValueError('Broker {0} not found'.format(name))
 
 
 @cluster_managers.command(name='list')
