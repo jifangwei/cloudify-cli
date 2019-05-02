@@ -68,8 +68,8 @@ def status(client):
     """
     Display the current status of the Cloudify Manager cluster
     """
-    cluster_managers_list(client)
-    cluster_brokers_list(client)
+    _list_managers(client)
+    _list_brokers(client)
 
 
 @cluster.group(name='brokers')
@@ -82,6 +82,10 @@ def cluster_brokers():
 @cfy.pass_client()
 @cfy.options.common_options
 def cluster_brokers_list(client):
+    _list_brokers(client)
+
+
+def _list_brokers(client):
     brokers = client.manager.get_brokers().items
     print_data(BROKER_COLUMNS, brokers, 'RabbitMQ brokers')
 
@@ -128,6 +132,10 @@ def cluster_managers_get(hostname, client, logger):
 @cfy.pass_client()
 @cfy.options.common_options
 def cluster_managers_list(client):
+    _list_managers(client)
+
+
+def _list_managers(client):
     managers = client.manager.get_managers().items
     updated_columns = CLUSTER_COLUMNS
     for manager in managers:
