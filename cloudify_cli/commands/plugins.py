@@ -18,6 +18,9 @@ import os
 
 import wagon
 
+from cloudify_cli import execution_events_fetcher
+from cloudify_cli.exceptions import SuppressedCloudifyCliError
+from cloudify_cli.logger import get_events_logger
 from cloudify_rest_client.constants import VISIBILITY_EXCEPT_PRIVATE
 
 from .. import utils
@@ -285,3 +288,54 @@ def set_visibility(plugin_id, visibility, logger, client):
         client.plugins.set_visibility(plugin_id, visibility)
         logger.info('Plugin `{0}` was set to {1}'.format(plugin_id,
                                                          visibility))
+
+
+@plugins.command(name='update',
+                 short_help='Update the plugins of all the deployments of '
+                            'the blueprint [manager only]')
+@cfy.options.blueprint_id()
+@cfy.options.common_options
+@cfy.options.tenant_name(required=False, resource_name_for_help='plugin')
+@cfy.assert_manager_active()
+@cfy.options.include_logs
+@cfy.options.json_output
+@cfy.pass_logger
+@cfy.pass_client()
+def update(blueprint_id, include_logs, json_output, logger, client,
+           tenant_name):
+    """Update the plugins of all the deployments of the given blueprint. This
+    will update the deployments one by one until all succeeded.
+    """
+    utils.explicit_tenant_name_message(tenant_name, logger)
+    logger.info('Updating the plugins of the deployments of the blueprint '
+                '{}'.format(blueprint_id))
+    plugins_update = client.plugins.update_plugins(blueprint_id)
+    events_logger = get_events_logger(json_output)
+    execution = execution_events_fetcher.wait_for_execution(
+        client,
+        client.executions.get(plugins_update.execution_id),
+        events_handler=events_logger,
+        include_logs=include_logs,
+        timeout=None  # don't timeout ever
+    )
+
+    if execution.error:
+        logger.info("Execution of workflow '{0}' for blueprint "
+                    "'{1}' failed. [error={2}]"
+                    .format(execution.workflow_id,
+                            execution.blueprint_id,
+                            execution.error))
+        logger.info('Failed updating plugins for blueprint {0}. '
+                    'Plugins update ID: {1}. Execution id: {2}'
+                    .format(blueprint_id,
+                            plugins_update.id,
+                            execution.id))
+        raise SuppressedCloudifyCliError()
+    logger.info("Finished executing workflow '{0}'".format(
+        execution.workflow_id))
+    # TODO: wait for plugins update status to change to success before finishing
+    # logger.info('Successfully updated plugins for blueprint {0}. '
+    #             'Plugins update ID: {1}. Execution id: {2}'
+    #             .format(blueprint_id,
+    #                     plugins_update.id,
+    #                     execution.id))
