@@ -19,8 +19,9 @@ import os
 import wagon
 
 from cloudify_cli import execution_events_fetcher
-from cloudify_cli.exceptions import SuppressedCloudifyCliError
 from cloudify_cli.logger import get_events_logger
+from cloudify_cli.exceptions import SuppressedCloudifyCliError
+
 from cloudify_rest_client.constants import VISIBILITY_EXCEPT_PRIVATE
 
 from .. import utils
