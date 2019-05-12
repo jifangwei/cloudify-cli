@@ -100,6 +100,10 @@ FORCE_UPDATE = (
     "Force running update in case a previous update on this deployment has "
     "failed to finished successfully"
 )
+FORCE_PLUGINS_UPDATE = (
+    "Force running the update in case a previous update on this blueprint has "
+    "failed to finished successfully."
+)
 
 DEPLOYMENT_ID = "The unique identifier for the deployment"
 EXECUTION_ID = "The unique identifier for the execution"

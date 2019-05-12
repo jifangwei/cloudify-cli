@@ -302,15 +302,21 @@ def set_visibility(plugin_id, visibility, logger, client):
 @cfy.options.json_output
 @cfy.pass_logger
 @cfy.pass_client()
-def update(blueprint_id, include_logs, json_output, logger, client,
-           tenant_name):
+@cfy.options.force(help=helptexts.FORCE_PLUGINS_UPDATE)
+def update(blueprint_id,
+           include_logs,
+           json_output,
+           logger,
+           client,
+           tenant_name,
+           force):
     """Update the plugins of all the deployments of the given blueprint. This
     will update the deployments one by one until all succeeded.
     """
     utils.explicit_tenant_name_message(tenant_name, logger)
     logger.info('Updating the plugins of the deployments of the blueprint '
                 '{}'.format(blueprint_id))
-    plugins_update = client.plugins.update_plugins(blueprint_id)
+    plugins_update = client.plugins.update_plugins(blueprint_id, force)
     events_logger = get_events_logger(json_output)
     execution = execution_events_fetcher.wait_for_execution(
         client,
@@ -334,9 +340,8 @@ def update(blueprint_id, include_logs, json_output, logger, client,
         raise SuppressedCloudifyCliError()
     logger.info("Finished executing workflow '{0}'".format(
         execution.workflow_id))
-    # TODO: wait for plugins update status to change to success before finishing
-    # logger.info('Successfully updated plugins for blueprint {0}. '
-    #             'Plugins update ID: {1}. Execution id: {2}'
-    #             .format(blueprint_id,
-    #                     plugins_update.id,
-    #                     execution.id))
+    logger.info('Successfully updated plugins for blueprint {0}. '
+                'Plugins update ID: {1}. Execution id: {2}'
+                .format(blueprint_id,
+                        plugins_update.id,
+                        execution.id))
