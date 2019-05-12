@@ -116,3 +116,12 @@ class PluginsTest(CliCommandTest):
         yaml_path = os.path.join(PLUGINS_DIR, 'plugin.yaml')
         self.invoke('cfy plugins upload {0} -l private -y {1}'
                     .format(yaml_path, yaml_path))
+
+    def test_calls_rest_client_correctly(self):
+        pass
+
+    def test_waits_for_execution_to_finish(self):
+        pass
+
+    def test_raises_when_execution_fails(self):
+        pass
