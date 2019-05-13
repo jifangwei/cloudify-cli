@@ -90,10 +90,14 @@ def is_auto_generate_ids():
     return config.auto_generate_ids
 
 
-def get_import_resolver():
+def get_import_resolver(plugins=None):
+    plugins = plugins or []
     local_import_resolver = {
         'implementation':
-            'cloudify_cli.config.config:ResolverWithCatalogIdentification'
+            'cloudify_cli.config.config:ResolverWithCatalogIdentification',
+            'parameters': {
+                'plugins': plugins
+            }
     }
     if env.is_initialized():
         config = CloudifyConfig()
@@ -116,19 +120,27 @@ class ResolverWithCatalogIdentification(DefaultImportResolver):
     in the manger not via the CLI, so this resolver only supports not
     catalog-style urls.
     """
-    CATALOG_RESOURCES_PREFIX = ('plugin:', 'blueprint:')
+    PLUGIN_PREFIX = 'plugin:'
+    CATALOG_RESOURCES_PREFIX = 'blueprint:'
+
+    def __init__(self, *args, **kwargs):
+        self._plugins = kwargs.pop('plugins', None) or []
+        super(ResolverWithCatalogIdentification, self).__init__(
+            *args, **kwargs)
 
     def fetch_import(self, import_url):
-        if self._is_cloudify_repository_url(import_url):
+        if self._is_plugin_url(import_url):
+            import_url = import_url.replace(self.PLUGIN_PREFIX, '', 1)
+            for plugin in self._plugins:
+                if plugin['name'] == import_url:
+                    import_url = 'file://{0}'.format(plugin['yaml'])
+        elif self._is_cloudify_repository_url(import_url):
             e = exceptions.CloudifyCliError(
                 'Error fetching remote resource yaml: {0!r}\nBlueprints using '
                 'Cloudify repository imports can not be validated locally.'
                 .format(import_url))
             e.possible_solutions = [
-                'Upload the blueprint/plugin to the Cloudify Manager',
-                'In case of a missing plugin, use an explicit URL '
-                'to the plugin YAML file instead of a plugin '
-                'repository `plugin:` import'
+                'Upload the blueprint to the Cloudify Manager',
             ]
             raise e
         return super(ResolverWithCatalogIdentification, self)\
@@ -136,3 +148,6 @@ class ResolverWithCatalogIdentification(DefaultImportResolver):
 
     def _is_cloudify_repository_url(self, import_url):
         return import_url.startswith(self.CATALOG_RESOURCES_PREFIX)
+
+    def _is_plugin_url(self, import_url):
+        return import_url.startswith(self.PLUGIN_PREFIX)

@@ -103,8 +103,7 @@ def init(blueprint_path,
                 name=blueprint_id or 'local',
                 inputs=inputs,
                 storage=storage,
-                install_plugins=install_plugins,
-                resolver=config.get_import_resolver()
+                install_plugins=install_plugins
             )
         except ImportError as e:
             e.possible_solutions = [

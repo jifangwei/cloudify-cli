@@ -1417,11 +1417,11 @@ class Options(object):
         return click.option(*args, **kwargs)
 
     @staticmethod
-    def plugin_yaml_path():
+    def plugin_yaml_path(required=True):
         return click.option(
             '-y',
             '--yaml-path',
-            required=True,
+            required=required,
             help=helptexts.PLUGIN_YAML_PATH)
 
     @staticmethod

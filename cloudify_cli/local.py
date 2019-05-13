@@ -17,6 +17,8 @@
 
 import os
 import sys
+import json
+import shutil
 import tempfile
 
 from cloudify.workflows import local
@@ -30,7 +32,7 @@ from . import utils
 from . import constants
 from . import exceptions
 from .logger import get_logger
-from .config.config import CloudifyConfig
+from .config.config import CloudifyConfig, get_import_resolver
 
 
 _ENV_NAME = 'local'
@@ -40,8 +42,7 @@ def initialize_blueprint(blueprint_path,
                          name,
                          storage=None,
                          install_plugins=False,
-                         inputs=None,
-                         resolver=None):
+                         inputs=None):
     logger = get_logger()
 
     logger.info('Initializing blueprint...')
@@ -56,7 +57,7 @@ def initialize_blueprint(blueprint_path,
         storage=storage,
         ignored_modules=constants.IGNORED_LOCAL_WORKFLOW_MODULES,
         provider_context=config.local_provider_context,
-        resolver=resolver,
+        resolver=get_import_resolver(plugins=list_plugins()),
         validate_version=config.validate_definitions_version)
 
 
@@ -67,9 +68,45 @@ def storage_dir(blueprint_id=None):
         return os.path.join(env.PROFILES_DIR, _ENV_NAME)
 
 
+def list_plugins():
+    try:
+        with open(os.path.join(storage_dir(), 'plugins.json')) as f:
+            return json.load(f)
+    except (IOError, ValueError):
+        return []
+
+
+def add_plugin(name, version, directory, yaml):
+    plugins = list_plugins()
+    plugins.append({
+        'name': name,
+        'version': version,
+        'directory': directory,
+        'yaml': yaml
+    })
+    with open(os.path.join(storage_dir(), 'plugins.json'), 'w') as f:
+        json.dump(plugins, f)
+
+
+def delete_plugin(name, version):
+    plugins = list_plugins()
+    found_plugin = None
+    for plugin in plugins:
+        if plugin['name'] == name and plugin['version'] == version:
+            found_plugin = plugin
+            break
+    if found_plugin is None:
+        raise RuntimeError('Plugin {0} {1} not found'.format(name, version))
+    plugins.remove(plugin)
+    with open(os.path.join(storage_dir(), 'plugins.json'), 'w') as f:
+        json.dump(plugins, f)
+    if plugin['directory'] and os.path.isdir(plugin['directory']):
+        shutil.rmtree(plugin['directory'])
+
+
 def list_blueprints():
     blueprints = []
-    for bp_id in os.listdir(os.path.join(env.PROFILES_DIR, _ENV_NAME)):
+    for bp_id in os.listdir(storage_dir()):
         bp_env = load_env(bp_id)
         blueprints.append({
             'id': bp_id,

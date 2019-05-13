@@ -15,12 +15,16 @@
 ############
 
 import os
+import sys
+import shutil
+import tempfile
+import subprocess
 
 import wagon
 
 from cloudify_rest_client.constants import VISIBILITY_EXCEPT_PRIVATE
 
-from .. import utils
+from .. import env, local, utils
 from ..table import print_data, print_single
 from ..cli import helptexts, cfy
 from ..utils import (prettify_client_error,
@@ -30,6 +34,7 @@ from ..utils import (prettify_client_error,
 PLUGIN_COLUMNS = ['id', 'package_name', 'package_version', 'distribution',
                   'supported_platform', 'distribution_release', 'uploaded_at',
                   'visibility', 'tenant_name', 'created_by', 'yaml_url_path']
+LOCAL_PLUGIN_COLUMNS = ['name', 'version', 'has_yaml']
 GET_DATA_COLUMNS = ['file_server_path']
 EXCLUDED_COLUMNS = ['archive_name', 'distribution_version', 'excluded_wheels',
                     'package_source', 'supported_py_versions', 'wheels']
@@ -62,8 +67,8 @@ def validate(plugin_path, logger):
     logger.info('Plugin validated successfully')
 
 
-@plugins.command(name='delete',
-                 short_help='Delete a plugin [manager only]')
+@cfy.command(name='delete',
+             short_help='Delete a plugin [manager only]')
 @cfy.argument('plugin-id')
 @cfy.options.force(help=helptexts.FORCE_DELETE_PLUGIN)
 @cfy.options.common_options
@@ -71,7 +76,7 @@ def validate(plugin_path, logger):
 @cfy.assert_manager_active()
 @cfy.pass_client()
 @cfy.pass_logger
-def delete(plugin_id, force, logger, client, tenant_name):
+def manager_delete(plugin_id, force, logger, client, tenant_name):
     """Delete a plugin from the manager
 
     `PLUGIN_ID` is the id of the plugin to delete.
@@ -80,6 +85,60 @@ def delete(plugin_id, force, logger, client, tenant_name):
     logger.info('Deleting plugin {0}...'.format(plugin_id))
     client.plugins.delete(plugin_id=plugin_id, force=force)
     logger.info('Plugin deleted')
+
+
+@cfy.command(name='delete',
+             short_help='Delete a plugin')
+@cfy.argument('plugin-name')
+@cfy.argument('plugin-version')
+@cfy.options.common_options
+@cfy.pass_logger
+def local_delete(plugin_name, plugin_version, logger):
+    local.delete_plugin(plugin_name, plugin_version)
+    logger.info('Plugin deleted')
+
+
+@cfy.command(name='install')
+@cfy.argument('plugin-path')
+@cfy.options.plugin_yaml_path(required=False)
+@cfy.pass_logger
+def install(plugin_path, yaml_path, logger):
+    metadata = wagon.show(plugin_path)
+    plugin_dir = os.path.join(
+        env.get_profile_dir(),
+        'plugins',
+        metadata['package_name'],
+        metadata['package_version'])
+    with tempfile.NamedTemporaryFile(delete=False) as f:
+        freeze = subprocess.check_output([
+            sys.executable, '-m', 'pip', 'freeze', '--all'])
+        f.write(freeze)
+    args = [
+        '--prefix', plugin_dir,
+        '--constraint', f.name
+    ]
+    wagon.install(plugin_path, install_args=args)
+
+    if yaml_path and os.path.isfile(yaml_path):
+        target_yaml_path = os.path.join(plugin_dir, 'plugin.yaml')
+        shutil.copyfile(yaml_path, target_yaml_path)
+    else:
+        target_yaml_path = None
+    local.add_plugin(
+        name=metadata['package_name'],
+        version=metadata['package_version'],
+        directory=plugin_dir,
+        yaml=target_yaml_path
+    )
+
+
+@cfy.command(name='list')
+@cfy.pass_logger
+def local_list(logger):
+    plugins = local.list_plugins()
+    for plugin in plugins:
+        plugin['has_yaml'] = bool(plugin.get('yaml'))
+    print_data(LOCAL_PLUGIN_COLUMNS, plugins, 'Plugins:')
 
 
 @plugins.command(name='upload',
@@ -194,8 +253,8 @@ def get(plugin_id, logger, client, tenant_name, get_data):
     print_single(columns, plugin, 'Plugin:')
 
 
-@plugins.command(name='list',
-                 short_help='List plugins [manager only]')
+@cfy.command(name='list',
+             short_help='List plugins [manager only]')
 @cfy.options.sort_by('uploaded_at')
 @cfy.options.descending
 @cfy.options.tenant_name_for_list(
@@ -209,16 +268,16 @@ def get(plugin_id, logger, client, tenant_name, get_data):
 @cfy.assert_manager_active()
 @cfy.pass_client()
 @cfy.pass_logger
-def list(sort_by,
-         descending,
-         tenant_name,
-         all_tenants,
-         search,
-         pagination_offset,
-         pagination_size,
-         logger,
-         client,
-         get_data):
+def manager_list(sort_by,
+                 descending,
+                 tenant_name,
+                 all_tenants,
+                 search,
+                 pagination_offset,
+                 pagination_size,
+                 logger,
+                 client,
+                 get_data):
     """List all plugins on the manager
     """
     utils.explicit_tenant_name_message(tenant_name, logger)
