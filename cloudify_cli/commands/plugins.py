@@ -350,7 +350,7 @@ def update(blueprint_id,
                         execution.id))
 
 
-@cfy.command(
+@plugins.command(
     name='get-update',
     short_help='Retrieve plugins update information [manager only]'
 )
@@ -373,8 +373,8 @@ def manager_get_update(plugins_update_id, logger, client, tenant_name):
         PLUGINS_UPDATE_COLUMNS, plugins_update_dict, 'Plugins update:')
 
 
-@cfy.command(name='history', short_help='List updates updates '
-                                        '[manager only]')
+@plugins.command(name='history', short_help='List plugins updates '
+                                            '[manager only]')
 @cfy.options.blueprint_id()
 @cfy.options.sort_by()
 @cfy.options.descending
