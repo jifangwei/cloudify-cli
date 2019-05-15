@@ -7,10 +7,12 @@ from functools import wraps
 from mock import MagicMock, PropertyMock, patch
 
 from .constants import PLUGINS_DIR
+from .mocks import MockListResponse
 from .test_base import CliCommandTest
 
-from .mocks import MockListResponse
 from cloudify_rest_client import plugins
+from cloudify_rest_client.plugins_update import PluginsUpdate
+
 from cloudify_cli.exceptions import CloudifyCliError
 from cloudify_cli.constants import DEFAULT_TENANT_NAME
 
@@ -141,3 +143,18 @@ class PluginsTest(CliCommandTest):
 
     def test_raises_when_execution_fails(self):
         pass
+
+
+class PluginsUpdateTest(CliCommandTest):
+
+    def setUp(self):
+        super(PluginsUpdateTest, self).setUp()
+        self.use_manager()
+
+    def test_plugins_list(self):
+        self.client.plugins_update.get = MagicMock(
+            return_value=PluginsUpdate({
+                'id': 'asdf'
+            }))
+        output = self.invoke('cfy plugins get-update asdf')
+        self.assertIn('asdf', output)
