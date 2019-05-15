@@ -151,10 +151,16 @@ class PluginsUpdateTest(CliCommandTest):
         super(PluginsUpdateTest, self).setUp()
         self.use_manager()
 
-    def test_plugins_list(self):
+    def test_plugins_get(self):
         self.client.plugins_update.get = MagicMock(
             return_value=PluginsUpdate({
                 'id': 'asdf'
             }))
         outcome = self.invoke('cfy plugins get-update asdf')
         self.assertIn('asdf', outcome.output)
+
+    def test_plugins_list(self):
+        self.asserTrue(False)
+
+    def test_plugins_update(self):
+        self.asserTrue(False)
