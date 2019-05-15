@@ -319,7 +319,7 @@ def update(blueprint_id,
     utils.explicit_tenant_name_message(tenant_name, logger)
     logger.info('Updating the plugins of the deployments of the blueprint '
                 '{}'.format(blueprint_id))
-    plugins_update = client.plugins.update_plugins(blueprint_id, force)
+    plugins_update = client.plugins_update.update_plugins(blueprint_id, force)
     events_logger = get_events_logger(json_output)
     execution = execution_events_fetcher.wait_for_execution(
         client,
