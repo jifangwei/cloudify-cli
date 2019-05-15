@@ -34,6 +34,9 @@ from ..utils import (prettify_client_error,
 PLUGIN_COLUMNS = ['id', 'package_name', 'package_version', 'distribution',
                   'supported_platform', 'distribution_release', 'uploaded_at',
                   'visibility', 'tenant_name', 'created_by', 'yaml_url_path']
+PLUGINS_UPDATE_COLUMNS = ['id', 'state', 'blueprint_id', 'temp_blueprint_id',
+                          'execution_id', 'deployments_to_update',
+                          'visibility', 'created_at']
 GET_DATA_COLUMNS = ['file_server_path']
 EXCLUDED_COLUMNS = ['archive_name', 'distribution_version', 'excluded_wheels',
                     'package_source', 'supported_py_versions', 'wheels']
@@ -345,3 +348,79 @@ def update(blueprint_id,
                 .format(blueprint_id,
                         plugins_update.id,
                         execution.id))
+
+
+@cfy.command(
+    name='get-update',
+    short_help='Retrieve plugins update information [manager only]'
+)
+@cfy.argument('plugins-update-id')
+@cfy.options.common_options
+@cfy.options.tenant_name(required=False,
+                         resource_name_for_help='plugins update')
+@cfy.assert_manager_active()
+@cfy.pass_client()
+@cfy.pass_logger
+def manager_get_update(plugins_update_id, logger, client, tenant_name):
+    """Retrieve information for a specific plugins update
+
+    `PLUGINS_UPDATE_ID` is the id of the plugins update to get information on.
+    """
+    utils.explicit_tenant_name_message(tenant_name, logger)
+    logger.info('Retrieving plugins update {0}...'.format(plugins_update_id))
+    plugins_update_dict = client.plugins_updates.get(plugins_update_id)
+    print_single(
+        PLUGINS_UPDATE_COLUMNS, plugins_update_dict, 'Plugins update:')
+
+
+@cfy.command(name='history', short_help='List updates updates '
+                                        '[manager only]')
+@cfy.options.blueprint_id()
+@cfy.options.sort_by()
+@cfy.options.descending
+@cfy.options.tenant_name_for_list(
+    required=False, resource_name_for_help='plugins update')
+@cfy.options.all_tenants
+@cfy.options.search
+@cfy.options.pagination_offset
+@cfy.options.pagination_size
+@cfy.options.common_options
+@cfy.assert_manager_active()
+@cfy.pass_client()
+@cfy.pass_logger
+def manager_history(blueprint_id,
+                    sort_by,
+                    descending,
+                    all_tenants,
+                    search,
+                    pagination_offset,
+                    pagination_size,
+                    logger,
+                    client,
+                    tenant_name):
+    """Show blueprint history by listing plugins updates
+
+    If `--blueprint-id` is provided, list plugins updates for that
+    blueprint. Otherwise, list plugins updates for all blueprints.
+    """
+    utils.explicit_tenant_name_message(tenant_name, logger)
+    if blueprint_id:
+        logger.info('Listing plugins updates for blueprint {0}...'.format(
+            blueprint_id))
+    else:
+        logger.info('Listing all plugins updates...')
+
+    plugins_updates = client.plugins_update.list(
+        sort=sort_by,
+        is_descending=descending,
+        _all_tenants=all_tenants,
+        _search=search,
+        _offset=pagination_offset,
+        _size=pagination_size,
+        blueprint_id=blueprint_id
+    )
+    total = plugins_updates.metadata.pagination.total
+    print_data(
+        PLUGINS_UPDATE_COLUMNS, plugins_updates, 'Plugins updates:')
+    logger.info('Showing {0} of {1} plugins updates'.format(
+        len(plugins_updates), total))
