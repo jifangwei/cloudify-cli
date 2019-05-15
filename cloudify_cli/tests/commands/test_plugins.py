@@ -3,7 +3,8 @@ import shutil
 import tempfile
 
 import wagon
-from mock import MagicMock
+from functools import wraps
+from mock import MagicMock, PropertyMock, patch
 
 from .constants import PLUGINS_DIR
 from .test_base import CliCommandTest
@@ -12,6 +13,21 @@ from .mocks import MockListResponse
 from cloudify_rest_client import plugins
 from cloudify_cli.exceptions import CloudifyCliError
 from cloudify_cli.constants import DEFAULT_TENANT_NAME
+
+
+def mock_wait_for_executions(f=None, value=None):
+    if value is None:
+        raise RuntimeError("Value cannot be None.")
+    if not f:
+        return lambda _f: mock_wait_for_executions(_f, value)
+
+    @wraps(f)
+    def wrapper(*args, **kwargs):
+        with patch('cloudify_cli.execution_events_fetcher.wait_for_execution',
+                   MagicMock(return_value=PropertyMock(error=value))):
+            return f(*args, **kwargs)
+
+    return wrapper
 
 
 class PluginsTest(CliCommandTest):
