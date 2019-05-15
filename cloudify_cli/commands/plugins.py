@@ -368,7 +368,7 @@ def manager_get_update(plugins_update_id, logger, client, tenant_name):
     """
     utils.explicit_tenant_name_message(tenant_name, logger)
     logger.info('Retrieving plugins update {0}...'.format(plugins_update_id))
-    plugins_update_dict = client.plugins_updates.get(plugins_update_id)
+    plugins_update_dict = client.plugins_update.get(plugins_update_id)
     print_single(
         PLUGINS_UPDATE_COLUMNS, plugins_update_dict, 'Plugins update:')
 
