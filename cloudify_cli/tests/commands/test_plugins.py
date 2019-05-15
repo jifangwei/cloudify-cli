@@ -156,5 +156,5 @@ class PluginsUpdateTest(CliCommandTest):
             return_value=PluginsUpdate({
                 'id': 'asdf'
             }))
-        output = self.invoke('cfy plugins get-update asdf')
-        self.assertIn('asdf', output)
+        outcome = self.invoke('cfy plugins get-update asdf')
+        self.assertIn('asdf', outcome.output)
