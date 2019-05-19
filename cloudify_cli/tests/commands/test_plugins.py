@@ -145,10 +145,34 @@ class PluginsUpdateTest(CliCommandTest):
                 'id': 'asdf'
             }))
         outcome = self.invoke('cfy plugins get-update asdf')
-        self.assertIn('asdf', outcome.output)
+        # One time in the "Retrieving..." log message and one time in the
+        # output table itself.
+        self.assertEqual(2, outcome.output.count('asdf'))
 
     def test_plugins_list(self):
-        self.asserTrue(False)
+        _plugins = MockListResponse([
+            plugins_update.PluginsUpdate({'id': 'asdf'}),
+            plugins_update.PluginsUpdate({'id': 'fdsa'})
+        ])
+        _plugins.metadata.pagination.total = 2
+        self.client.plugins_update.list = MagicMock(return_value=_plugins)
+        outcome = self.invoke('cfy plugins history')
+        self.assertIn('asdf', outcome.output)
+        self.assertIn('fdsa', outcome.output)
+
+    def test_plugins_list_of_blueprint(self):
+        plugins_updates = [
+            {'blueprint_id': 'b1_blueprint'},
+            {'blueprint_id': 'b1_blueprint'},
+            {'blueprint_id': 'b2_blueprint'}
+        ]
+
+        self.client.plugins_update.list = MagicMock(
+            return_value=MockListResponse(items=plugins_updates)
+        )
+        outcome = self.invoke('cfy plugins history -b b1_blueprint -v')
+        self.assertNotIn('b2_blueprint', outcome.logs)
+        self.assertIn('b1_blueprint', outcome.logs)
 
     def test_plugins_update_successful(self):
         self.client.plugins_update.update_plugins = Mock()
