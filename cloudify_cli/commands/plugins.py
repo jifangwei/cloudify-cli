@@ -297,7 +297,7 @@ def set_visibility(plugin_id, visibility, logger, client):
 @plugins.command(name='update',
                  short_help='Update the plugins of all the deployments of '
                             'the blueprint [manager only]')
-@cfy.options.blueprint_id()
+@cfy.options.blueprint_id(required=True)
 @cfy.options.common_options
 @cfy.options.tenant_name(required=False, resource_name_for_help='plugin')
 @cfy.assert_manager_active()

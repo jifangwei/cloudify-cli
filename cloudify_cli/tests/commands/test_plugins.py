@@ -18,19 +18,6 @@ from cloudify_cli.exceptions import (CloudifyCliError,
                                      SuppressedCloudifyCliError)
 
 
-def mock_wait_for_executions(f=None, value=None):
-    if not f:
-        return lambda _f: mock_wait_for_executions(_f, value)
-
-    @wraps(f)
-    def wrapper(*args, **kwargs):
-        with patch('cloudify_cli.execution_events_fetcher.wait_for_execution',
-                   MagicMock(return_value=PropertyMock(error=value))):
-            return f(*args, **kwargs)
-
-    return wrapper
-
-
 class PluginsTest(CliCommandTest):
 
     def setUp(self):
@@ -134,21 +121,23 @@ class PluginsTest(CliCommandTest):
         self.invoke('cfy plugins upload {0} -l private -y {1}'
                     .format(yaml_path, yaml_path))
 
-    def test_calls_rest_client_correctly(self):
-        pass
-
-    def test_waits_for_execution_to_finish(self):
-        pass
-
-    def test_raises_when_execution_fails(self):
-        pass
-
 
 class PluginsUpdateTest(CliCommandTest):
+
+    def _mock_wait_for_executions(self, value):
+        patcher = patch(
+            'cloudify_cli.execution_events_fetcher.wait_for_execution',
+            MagicMock(return_value=PropertyMock(error=value))
+        )
+        self.addCleanup(patcher.stop)
+        patcher.start()
 
     def setUp(self):
         super(PluginsUpdateTest, self).setUp()
         self.use_manager()
+        self.client.executions = MagicMock()
+        self.client.plugins_update = MagicMock()
+        self._mock_wait_for_executions(False)
 
     def test_plugins_get(self):
         self.client.plugins_update.get = MagicMock(
@@ -162,6 +151,7 @@ class PluginsUpdateTest(CliCommandTest):
         self.asserTrue(False)
 
     def test_plugins_update_successful(self):
+        self.client.plugins_update.update_plugins = Mock()
         outcome = self.invoke('cfy plugins update -b asdf')
         self.assertIn('Updating the plugins of the deployments of the '
                       'blueprint asdf', outcome.logs)
@@ -171,11 +161,10 @@ class PluginsUpdateTest(CliCommandTest):
 
     def test_update_force_flag_is_false(self):
         update_client_mock = Mock()
-        self.client.deployment_updates.update_with_existing_blueprint = \
-            update_client_mock
+        self.client.plugins_update.update_plugins = update_client_mock
         self.invoke('cfy plugins update -b asdf')
 
-        calls = self.client.plugins_update.update_plugins.mock_calls
+        calls = update_client_mock.mock_calls
         self.assertEqual(len(calls), 1)
         _, args, kwargs = calls[0]
         call_args = inspect.getcallargs(
@@ -187,11 +176,10 @@ class PluginsUpdateTest(CliCommandTest):
 
     def test_update_force_flag_is_true(self):
         update_client_mock = Mock()
-        self.client.deployment_updates.update_with_existing_blueprint = \
-            update_client_mock
+        self.client.plugins_update.update_plugins = update_client_mock
         self.invoke('cfy plugins update -b asdf --force')
 
-        calls = self.client.plugins_update.update_plugins.mock_calls
+        calls = update_client_mock.mock_calls
         self.assertEqual(len(calls), 1)
         _, args, kwargs = calls[0]
         call_args = inspect.getcallargs(
@@ -201,15 +189,16 @@ class PluginsUpdateTest(CliCommandTest):
         self.assertIn('force', call_args)
         self.assertTrue(call_args['force'])
 
-    @mock_wait_for_executions(value=True)
-    def test_deployment_update_failure(self):
+    def test_plugins_update_failure(self):
+        self._mock_wait_for_executions(True)
         outcome = self.invoke(
             'cfy plugins update -b asdf',
             err_str_segment='',
             exception=SuppressedCloudifyCliError)
 
         logs = outcome.logs.split('\n')
-        self.assertIn('Updating deployment my_deployment', logs[-3])
+        self.assertIn('Updating the plugins of the deployments of the '
+                      'blueprint asdf', logs[-3])
         self.assertIn('Execution of workflow', logs[-2])
         self.assertIn('failed', logs[-2])
-        self.assertIn('Failed updating deployment my_deployment', logs[-1])
+        self.assertIn('Failed updating plugins for blueprint asdf', logs[-1])
