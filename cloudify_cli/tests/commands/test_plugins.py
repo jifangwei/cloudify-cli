@@ -3,9 +3,9 @@ import os
 import shutil
 import tempfile
 
-import wagon
-from functools import wraps
 from mock import MagicMock, PropertyMock, patch, Mock
+
+import wagon
 
 from .constants import PLUGINS_DIR
 from .mocks import MockListResponse
